@@ -134,4 +134,105 @@ document.addEventListener("DOMContentLoaded", () => {
       image.replaceWith(fallback);
     }, { once: true });
   });
+
+  // --- GA4 Tracking Logic (Section View & CTA Click) ---
+  initGA4Tracking();
 });
+
+function initGA4Tracking() {
+  if (window.__ga4_tracking_initialized) return;
+  window.__ga4_tracking_initialized = true;
+
+  const sendEvent = (eventName, params) => {
+    if (typeof window.gtag === "function") {
+      window.gtag("event", eventName, params);
+    }
+  };
+
+  // 1. 구간 도달 측정 (section_view)
+  const sentSections = new Set();
+  const sectionTargets = [
+    { id: "hero-title", name: "hero" },
+    { id: "detail-space-title", name: "detail" },
+    { id: "purchase-title", name: "cta" },
+  ];
+
+  if ("IntersectionObserver" in window) {
+    const sectionObserver = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((entry) => {
+          if (entry.isIntersecting && entry.intersectionRatio >= 0.5) {
+            const targetId = entry.target.id;
+            const targetConfig = sectionTargets.find((s) => s.id === targetId);
+            if (targetConfig && !sentSections.has(targetConfig.name)) {
+              if (document.visibilityState === "visible") {
+                sentSections.add(targetConfig.name);
+                sendEvent("section_view", { section_name: targetConfig.name });
+                sectionObserver.unobserve(entry.target);
+              }
+            }
+          }
+        });
+      },
+      {
+        threshold: [0.5],
+        rootMargin: "-70px 0px 0px 0px", // 70px 고정 헤더 영역 보정
+      }
+    );
+
+    sectionTargets.forEach((item) => {
+      const el = document.getElementById(item.id);
+      if (el && !sentSections.has(item.name)) {
+        sectionObserver.observe(el);
+      }
+    });
+
+    // 다른 탭에서 돌아왔을 때 현재 보이는 제목 체크 및 누락 방지
+    document.addEventListener("visibilitychange", () => {
+      if (document.visibilityState === "visible") {
+        sectionTargets.forEach((item) => {
+          if (!sentSections.has(item.name)) {
+            const el = document.getElementById(item.id);
+            if (el) {
+              const rect = el.getBoundingClientRect();
+              const vHeight = window.innerHeight;
+              const vWidth = window.innerWidth;
+              const visibleTop = Math.max(rect.top, 70);
+              const visibleBottom = Math.min(rect.bottom, vHeight);
+              const visibleLeft = Math.max(rect.left, 0);
+              const visibleRight = Math.min(rect.right, vWidth);
+              const visibleHeight = Math.max(0, visibleBottom - visibleTop);
+              const visibleWidth = Math.max(0, visibleRight - visibleLeft);
+              const totalArea = rect.height * rect.width;
+              if (totalArea > 0 && (visibleHeight * visibleWidth) / totalArea >= 0.5) {
+                sentSections.add(item.name);
+                sendEvent("section_view", { section_name: item.name });
+                sectionObserver.unobserve(el);
+              }
+            }
+          }
+        });
+      }
+    });
+  }
+
+  // 2. CTA 클릭 측정 (cta_click)
+  const ctaMap = [
+    { selector: "#cta-hero, [data-cta-location='hero']", location: "hero" },
+    { selector: "#cta-final, [data-cta-location='final']", location: "final" },
+  ];
+
+  const boundCtaElements = new Set();
+
+  ctaMap.forEach((config) => {
+    const elements = document.querySelectorAll(config.selector);
+    elements.forEach((el) => {
+      if (!boundCtaElements.has(el)) {
+        boundCtaElements.add(el);
+        el.addEventListener("click", () => {
+          sendEvent("cta_click", { button_location: config.location });
+        });
+      }
+    });
+  });
+}
