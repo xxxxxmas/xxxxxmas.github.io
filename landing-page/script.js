@@ -1,0 +1,137 @@
+document.addEventListener("DOMContentLoaded", () => {
+  const modal = document.getElementById("prep-modal");
+  const lightbox = document.getElementById("image-lightbox");
+  const lightboxImage = lightbox.querySelector("img");
+  const lightboxCaption = lightbox.querySelector("p");
+
+  const closeModal = () => {
+    modal.classList.remove("is-open");
+    modal.setAttribute("aria-hidden", "true");
+    document.body.classList.remove("modal-open");
+  };
+
+  document.querySelectorAll(".js-open-modal").forEach((button) => {
+    button.addEventListener("click", () => {
+      modal.classList.add("is-open");
+      modal.setAttribute("aria-hidden", "false");
+      document.body.classList.add("modal-open");
+      modal.querySelector(".modal-close-button").focus();
+    });
+  });
+
+  modal.querySelectorAll("[data-close-modal]").forEach((button) => {
+    button.addEventListener("click", closeModal);
+  });
+
+  const closeLightbox = () => {
+    lightbox.classList.remove("is-open");
+    lightbox.setAttribute("aria-hidden", "true");
+    lightboxImage.src = "";
+    document.body.classList.remove("modal-open");
+  };
+
+  document.querySelectorAll(".js-lightbox").forEach((element) => {
+    element.addEventListener("click", () => {
+      const image = element.querySelector("img");
+      const fullImage = element.dataset.fullImage || image.currentSrc || image.src;
+      lightboxImage.src = fullImage;
+      lightboxImage.alt = image.alt;
+      lightboxCaption.textContent = element.dataset.caption || image.alt;
+      lightbox.classList.add("is-open");
+      lightbox.setAttribute("aria-hidden", "false");
+      document.body.classList.add("modal-open");
+      lightbox.querySelector(".lightbox-close").focus();
+    });
+  });
+
+  lightbox.querySelectorAll("[data-close-lightbox]").forEach((button) => {
+    button.addEventListener("click", closeLightbox);
+  });
+
+  document.addEventListener("keydown", (event) => {
+    if (event.key === "Escape") {
+      if (modal.classList.contains("is-open")) closeModal();
+      if (lightbox.classList.contains("is-open")) closeLightbox();
+    }
+  });
+
+  document.querySelectorAll(".faq-question").forEach((question) => {
+    question.addEventListener("click", () => {
+      const item = question.closest(".faq-item");
+      const isOpen = item.classList.contains("is-open");
+      document.querySelectorAll(".faq-item").forEach((otherItem) => {
+        otherItem.classList.remove("is-open");
+        otherItem.querySelector(".faq-question").setAttribute("aria-expanded", "false");
+        otherItem.querySelector(".faq-question i").textContent = "+";
+      });
+      if (!isOpen) {
+        item.classList.add("is-open");
+        question.setAttribute("aria-expanded", "true");
+        question.querySelector("i").textContent = "−";
+      }
+    });
+  });
+
+  const comparePanel = document.querySelector(".compare-panel");
+  const compareLabel = comparePanel.querySelector(".compare-label");
+  const compareText = comparePanel.querySelector(".compare-text");
+  const compareStates = {
+    before: {
+      label: "일반 동승",
+      text: "급브레이크마다 조수석으로 쏠림 · 운전 중 무릎 위로 올라옴 · 시트에 남는 털과 오염",
+    },
+    after: {
+      label: "LETO와 함께",
+      text: "등받이까지 2중 고정 · 아이를 감싸는 볼스터 가드 · 생활 방수와 올커버 분리 세탁",
+    },
+  };
+
+  document.querySelectorAll(".compare-tab").forEach((tab) => {
+    tab.addEventListener("click", () => {
+      const state = tab.dataset.state;
+      document.querySelectorAll(".compare-tab").forEach((button) => {
+        const selected = button === tab;
+        button.classList.toggle("is-active", selected);
+        button.setAttribute("aria-selected", String(selected));
+      });
+      comparePanel.dataset.current = state;
+      compareLabel.textContent = compareStates[state].label;
+      compareText.textContent = compareStates[state].text;
+    });
+  });
+
+  document.querySelectorAll(".step").forEach((step) => {
+    step.addEventListener("mouseenter", () => {
+      document.querySelectorAll(".step").forEach((otherStep) => otherStep.classList.remove("is-highlighted"));
+      step.classList.add("is-highlighted");
+    });
+    step.addEventListener("focusin", () => step.classList.add("is-highlighted"));
+  });
+
+  const revealItems = document.querySelectorAll(".reveal");
+  if ("IntersectionObserver" in window) {
+    const revealObserver = new IntersectionObserver(
+      (entries, observer) => {
+        entries.forEach((entry) => {
+          if (entry.isIntersecting) {
+            entry.target.classList.add("is-visible");
+            observer.unobserve(entry.target);
+          }
+        });
+      },
+      { threshold: 0.18 }
+    );
+    revealItems.forEach((item) => revealObserver.observe(item));
+  } else {
+    revealItems.forEach((item) => item.classList.add("is-visible"));
+  }
+
+  document.querySelectorAll("img[data-fallback]").forEach((image) => {
+    image.addEventListener("error", () => {
+      const fallback = document.createElement("div");
+      fallback.className = "image-fallback";
+      fallback.dataset.label = image.dataset.fallback;
+      image.replaceWith(fallback);
+    }, { once: true });
+  });
+});
